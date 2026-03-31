@@ -126,8 +126,8 @@ DISPLAY_SERVER=""
 if [ "$DE_CHOICE" != "0" ] && [ -n "$DE_CHOICE" ]; then
     echo ""
     echo "Display server:"
-    echo "  1) Wayland (consigliato)"
-    echo "  2) X11"
+    echo "  1) Wayland"
+    echo "  2) X11 (consigliato per controllo remoto)"
     read -p "Scelta [1/2]: " DS_CHOICE
 
     case "$DE_CHOICE" in
@@ -530,6 +530,18 @@ chmod +x ~/.greeter.zsh
 
 # Greeter come prima riga del .zshrc
 sed -i '1s/^/source ~\/.greeter.zsh\n/' ~/.zshrc
+
+# FIX: p10k instant prompt warning con greeter
+# Imposta INSTANT_PROMPT=quiet per evitare il warning
+# "console output during zsh initialization detected"
+if [ -f ~/.p10k.zsh ]; then
+    sed -i 's/typeset -g POWERLEVEL9K_INSTANT_PROMPT=verbose/typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet/' ~/.p10k.zsh
+fi
+
+# Tastiera italiana per GNOME
+if [ "${DE_SERVICE}" = "gdm" ]; then
+    gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'it')]"
+fi
 
 USERCHROOT
 
