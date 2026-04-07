@@ -111,13 +111,16 @@ echo ""
 echo "Tipo di macchina:"
 echo "  0) Desktop / VM"
 echo "  1) Laptop ASUS (battery limit via asus-nb-wmi)"
-echo "  2) Laptop Lenovo ThinkPad (battery limit via thinkpad_acpi)"
-read -p "Scelta [0-2]: " MACHINE_TYPE
+echo "  2) Laptop Lenovo ThinkPad Intel (T14 Gen1 e simili)"
+echo "  3) Laptop Lenovo ThinkPad AMD"
+read -p "Scelta [0-3]: " MACHINE_TYPE
 ASUS_BATTERY=false
 THINKPAD_BATTERY=false
+THINKPAD_INTEL=false
 case "$MACHINE_TYPE" in
     1) ASUS_BATTERY=true ;;
-    2) THINKPAD_BATTERY=true ;;
+    2) THINKPAD_BATTERY=true; THINKPAD_INTEL=true ;;
+    3) THINKPAD_BATTERY=true ;;
 esac
 
 # ============================================================
@@ -228,8 +231,10 @@ else
 fi
 if $ASUS_BATTERY; then
     echo -e "  Macchina:      ${CYAN}Laptop ASUS (battery limit 80%)${RESET}"
+elif $THINKPAD_INTEL; then
+    echo -e "  Macchina:      ${CYAN}ThinkPad Intel (T14 Gen1, battery limit 80%)${RESET}"
 elif $THINKPAD_BATTERY; then
-    echo -e "  Macchina:      ${CYAN}Laptop ThinkPad (battery limit 80%)${RESET}"
+    echo -e "  Macchina:      ${CYAN}ThinkPad AMD (battery limit 80%)${RESET}"
 else
     echo -e "  Macchina:      ${CYAN}Desktop / VM${RESET}"
 fi
@@ -290,7 +295,15 @@ mount "$PART1" /mnt/boot
 # FASE 5 - INSTALLAZIONE PACCHETTI BASE
 # ============================================================
 section "Fase 5 - Installazione sistema base"
-BASE_PKGS="base base-devel linux-zen linux-zen-headers linux-firmware ${UCODE} btrfs-progs zsh zsh-completions networkmanager vim git curl wget zram-generator snapper snap-pac grub efibootmgr sudo openssh pacman-contrib ${VBOX_PKG}"
+# Pacchetti aggiuntivi per ThinkPad Intel
+THINKPAD_INTEL_PKGS=""
+if [ "$THINKPAD_INTEL" = true ]; then
+    THINKPAD_INTEL_PKGS="thermald tlp tlp-rdw acpi_call pipewire pipewire-pulse pipewire-alsa wireplumber bluez bluez-utils mesa vulkan-intel libva-intel-driver intel-media-driver"
+elif [ "$THINKPAD_BATTERY" = true ]; then
+    THINKPAD_INTEL_PKGS="thermald tlp tlp-rdw acpi_call pipewire pipewire-pulse pipewire-alsa wireplumber bluez bluez-utils mesa"
+fi
+
+BASE_PKGS="base base-devel linux-zen linux-zen-headers linux-firmware ${UCODE} btrfs-progs zsh zsh-completions networkmanager vim git curl wget zram-generator snapper snap-pac grub efibootmgr sudo openssh pacman-contrib ${VBOX_PKG} ${THINKPAD_INTEL_PKGS}"
 [ -n "$DE_PKGS" ] && ALL_PKGS="$BASE_PKGS $DE_PKGS" || ALL_PKGS="$BASE_PKGS"
 pacstrap -K /mnt $ALL_PKGS
 
@@ -589,7 +602,7 @@ EOF
     fi
 
 elif [ "$THINKPAD_BATTERY" = true ]; then
-    section "Fase opzionale - Battery limit ThinkPad"
+    section "Fase opzionale - Battery limit e configurazione ThinkPad"
     info "Configurazione battery limit ThinkPad via thinkpad_acpi..."
 
     # ThinkPad usa start/stop threshold - 75/80 è la configurazione consigliata
@@ -604,6 +617,61 @@ echo "alias battery-full='echo 95 | sudo tee /sys/class/power_supply/BAT0/charge
 BATTERYEOF
 
     info "Battery limit ThinkPad configurato (start 75% / stop 80%)."
+
+    # Configurazione TLP per ThinkPad
+    info "Configurazione TLP per ThinkPad..."
+    cat > /mnt/etc/tlp.conf << 'EOF'
+# TLP - ThinkPad T14 Gen1 Intel ottimizzato
+TLP_ENABLE=1
+TLP_DEFAULT_MODE=AC
+
+# CPU scaling
+CPU_SCALING_GOVERNOR_ON_AC=performance
+CPU_SCALING_GOVERNOR_ON_BAT=powersave
+CPU_ENERGY_PERF_POLICY_ON_AC=performance
+CPU_ENERGY_PERF_POLICY_ON_BAT=balance_power
+
+# Intel turbo boost
+CPU_BOOST_ON_AC=1
+CPU_BOOST_ON_BAT=0
+
+# Risparmio energetico PCIe
+PCIE_ASPM_ON_AC=default
+PCIE_ASPM_ON_BAT=powersupersave
+
+# WiFi risparmio energetico
+WIFI_PWR_ON_AC=off
+WIFI_PWR_ON_BAT=on
+
+# Ethernet risparmio energetico
+WOL_DISABLE=Y
+
+# USB autosospend
+USB_AUTOSUSPEND=1
+
+# ThinkPad battery threshold (gestito da udev, qui come backup)
+START_CHARGE_THRESH_BAT0=75
+STOP_CHARGE_THRESH_BAT0=80
+
+# Audio risparmio energetico
+SOUND_POWER_SAVE_ON_AC=0
+SOUND_POWER_SAVE_ON_BAT=1
+EOF
+
+    # Abilita servizi ThinkPad
+    arch-chroot /mnt systemctl enable tlp
+    arch-chroot /mnt systemctl enable bluetooth
+
+    # thermald per gestione termica Intel
+    if [ "$THINKPAD_INTEL" = true ]; then
+        arch-chroot /mnt systemctl enable thermald
+        info "thermald abilitato per gestione termica Intel Comet Lake."
+    fi
+
+    # Modulo acpi_call per battery threshold
+    arch-chroot /mnt bash -c 'echo "acpi_call" > /etc/modules-load.d/acpi_call.conf'
+
+    info "TLP configurato e ottimizzato per ThinkPad T14 Gen1."
     info "Usa 'battery-full' per sbloccare al 100% quando necessario."
 fi
 
