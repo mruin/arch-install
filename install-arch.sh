@@ -106,6 +106,20 @@ read -p "Installare VirtualBox Guest Additions? [s/N]: " VBOX_CHOICE
 read -p "Dimensione ZRAM swap in MB [3072]: " ZRAM_SIZE
 ZRAM_SIZE=${ZRAM_SIZE:-3072}
 
+# Tipo di macchina
+echo ""
+echo "Tipo di macchina:"
+echo "  0) Desktop / VM"
+echo "  1) Laptop ASUS (battery limit via asus-nb-wmi)"
+echo "  2) Laptop Lenovo ThinkPad (battery limit via thinkpad_acpi)"
+read -p "Scelta [0-2]: " MACHINE_TYPE
+ASUS_BATTERY=false
+THINKPAD_BATTERY=false
+case "$MACHINE_TYPE" in
+    1) ASUS_BATTERY=true ;;
+    2) THINKPAD_BATTERY=true ;;
+esac
+
 # ============================================================
 # DESKTOP ENVIRONMENT
 # ============================================================
@@ -211,6 +225,13 @@ if [ -n "$DE_NAME" ]; then
     echo -e "  DE:            ${CYAN}${DE_NAME} (${DISPLAY_SERVER})${RESET}"
 else
     echo -e "  DE:            ${CYAN}Nessuno (CLI)${RESET}"
+fi
+if $ASUS_BATTERY; then
+    echo -e "  Macchina:      ${CYAN}Laptop ASUS (battery limit 80%)${RESET}"
+elif $THINKPAD_BATTERY; then
+    echo -e "  Macchina:      ${CYAN}Laptop ThinkPad (battery limit 80%)${RESET}"
+else
+    echo -e "  Macchina:      ${CYAN}Desktop / VM${RESET}"
 fi
 echo ""
 warn "ATTENZIONE: Il disco ${DISK} verrà completamente formattato!"
@@ -544,6 +565,47 @@ if [ "${DE_SERVICE}" = "gdm" ]; then
 fi
 
 USERCHROOT
+
+# ============================================================
+# FASE OPZIONALE - BATTERY LIMIT
+# ============================================================
+if [ "$ASUS_BATTERY" = true ]; then
+    section "Fase opzionale - Battery limit ASUS"
+    if [ -f /mnt/sys/class/power_supply/BAT0/charge_control_end_threshold ]; then
+        info "Configurazione battery limit ASUS..."
+
+        arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << BATTERYEOF
+echo "alias battery-limit='echo 80 | sudo tee /sys/class/power_supply/BAT0/charge_control_end_threshold'" >> ~/.zsh_aliases
+echo "alias battery-full='echo 100 | sudo tee /sys/class/power_supply/BAT0/charge_control_end_threshold'" >> ~/.zsh_aliases
+BATTERYEOF
+
+        cat > /mnt/etc/udev/rules.d/99-battery.rules << 'EOF'
+SUBSYSTEM=="power_supply", KERNEL=="BAT0", ATTR{charge_control_end_threshold}="80"
+EOF
+        info "Battery limit all'80% configurato (ASUS). Usa 'battery-full' per sbloccare."
+    else
+        warn "File charge_control_end_threshold non trovato - modulo asus-nb-wmi non disponibile."
+        warn "Battery limit non configurato."
+    fi
+
+elif [ "$THINKPAD_BATTERY" = true ]; then
+    section "Fase opzionale - Battery limit ThinkPad"
+    info "Configurazione battery limit ThinkPad via thinkpad_acpi..."
+
+    # ThinkPad usa start/stop threshold - 75/80 è la configurazione consigliata
+    cat > /mnt/etc/udev/rules.d/99-battery.rules << 'EOF'
+SUBSYSTEM=="power_supply", KERNEL=="BAT0", ATTR{charge_start_threshold}="75"
+SUBSYSTEM=="power_supply", KERNEL=="BAT0", ATTR{charge_stop_threshold}="80"
+EOF
+
+    arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << BATTERYEOF
+echo "alias battery-limit='echo 75 | sudo tee /sys/class/power_supply/BAT0/charge_start_threshold && echo 80 | sudo tee /sys/class/power_supply/BAT0/charge_stop_threshold'" >> ~/.zsh_aliases
+echo "alias battery-full='echo 95 | sudo tee /sys/class/power_supply/BAT0/charge_start_threshold && echo 100 | sudo tee /sys/class/power_supply/BAT0/charge_stop_threshold'" >> ~/.zsh_aliases
+BATTERYEOF
+
+    info "Battery limit ThinkPad configurato (start 75% / stop 80%)."
+    info "Usa 'battery-full' per sbloccare al 100% quando necessario."
+fi
 
 # ============================================================
 # FASE 9 - INSTALLAZIONE PARU (AUR helper)
