@@ -195,11 +195,10 @@ wizard() {
 install_base() {
     step "Preparazione ambiente live"
 
-    log "Impostazione keymap nella live..."
-    loadkeys "$KEYMAP" 2>/dev/null || warn "loadkeys non disponibile in questo ambiente, continuo..."
+    # loadkeys non disponibile in Archboot, si skippa
 
     log "Aggiornamento clock di sistema..."
-    timedatectl set-ntp true
+    timedatectl set-ntp true 2>/dev/null || true
 
     log "Aggiornamento keyring pacman..."
     pacman -Sy --noconfirm archlinux-keyring 2>/dev/null || true
