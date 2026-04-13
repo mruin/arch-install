@@ -95,7 +95,7 @@ ask_disk() {
     echo ""
     info "Dischi disponibili:"
     echo ""
-    lsblk -d -o NAME,SIZE,MODEL,TYPE | grep -v "^loop" || lsblk
+    lsblk -d -o NAME,SIZE,MODEL,TYPE 2>/dev/null || lsblk
     echo ""
     ask DISK "Disco di destinazione (es: /dev/vda, /dev/sda)" "/dev/vda"
     # Aggiunge /dev/ se l'utente ha scritto solo il nome (es: vda)
