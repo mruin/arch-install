@@ -208,8 +208,8 @@ partition_disk() {
     step "Partizionamento disco: $DISK"
 
     log "Cancellazione firme esistenti..."
-    wipefs -af "$DISK"
-    sgdisk --zap-all "$DISK"
+    wipefs -af "$DISK" 2>/dev/null || true
+    dd if=/dev/zero of="$DISK" bs=512 count=2048 2>/dev/null || true
 
     log "Creazione tabella partizioni GPT (EFI 512M + ROOT resto)..."
     parted -s "$DISK" mklabel gpt
