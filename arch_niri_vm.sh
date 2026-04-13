@@ -10,7 +10,7 @@
 #    chmod +x arch_niri_vm.sh && ./arch_niri_vm.sh
 # =============================================================================
 
-set -euo pipefail
+set -eo pipefail
 
 # ── Colori ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -95,12 +95,16 @@ ask_disk() {
     echo ""
     info "Dischi disponibili:"
     echo ""
-    lsblk -d -o NAME,SIZE,MODEL,TYPE 2>/dev/null || lsblk
+    lsblk -d -o NAME,SIZE,MODEL,TYPE 2>/dev/null || lsblk -d 2>/dev/null || lsblk
     echo ""
     ask DISK "Disco di destinazione (es: /dev/vda, /dev/sda)" "/dev/vda"
     # Aggiunge /dev/ se l'utente ha scritto solo il nome (es: vda)
-    [[ "$DISK" != /dev/* ]] && DISK="/dev/${DISK}"
-    [[ ! -b "$DISK" ]] && { err "Dispositivo $DISK non trovato. Controlla con: lsblk"; }
+    if [[ "$DISK" != /dev/* ]]; then
+        DISK="/dev/${DISK}"
+    fi
+    if [[ ! -b "$DISK" ]]; then
+        err "Dispositivo $DISK non trovato. Controlla con: lsblk"
+    fi
 }
 
 # ── Verifica prerequisiti ─────────────────────────────────────────────────────
@@ -269,7 +273,7 @@ write_chroot_script() {
     # Esportiamo tutte le variabili nel here-doc in modo sicuro
     cat > /mnt/root/configure.sh << CHROOT_SCRIPT
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
