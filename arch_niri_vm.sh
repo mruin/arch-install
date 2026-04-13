@@ -196,7 +196,7 @@ install_base() {
     step "Preparazione ambiente live"
 
     log "Impostazione keymap nella live..."
-    loadkeys "$KEYMAP"
+    loadkeys "$KEYMAP" 2>/dev/null || warn "loadkeys non disponibile in questo ambiente, continuo..."
 
     log "Aggiornamento clock di sistema..."
     timedatectl set-ntp true
