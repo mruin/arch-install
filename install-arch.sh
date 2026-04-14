@@ -133,7 +133,8 @@ echo "  1) GNOME"
 echo "  2) KDE Plasma"
 echo "  3) Cinnamon"
 echo "  4) XFCE"
-read -p "Scelta [0-4]: " DE_CHOICE
+echo "  5) Niri + Noctalia Shell (Wayland tiling scrollabile)"
+read -p "Scelta [0-5]: " DE_CHOICE
 
 DE_NAME=""
 DE_PKGS=""
@@ -141,11 +142,16 @@ DE_SERVICE=""
 DISPLAY_SERVER=""
 
 if [ "$DE_CHOICE" != "0" ] && [ -n "$DE_CHOICE" ]; then
-    echo ""
-    echo "Display server:"
-    echo "  1) Wayland"
-    echo "  2) X11 (consigliato per controllo remoto)"
-    read -p "Scelta [1/2]: " DS_CHOICE
+    # Niri è solo Wayland, non chiedere il display server
+    if [ "$DE_CHOICE" != "5" ]; then
+        echo ""
+        echo "Display server:"
+        echo "  1) Wayland"
+        echo "  2) X11 (consigliato per controllo remoto)"
+        read -p "Scelta [1/2]: " DS_CHOICE
+    else
+        DS_CHOICE="1"
+    fi
 
     case "$DE_CHOICE" in
         1)
@@ -192,6 +198,14 @@ if [ "$DE_CHOICE" != "0" ] && [ -n "$DE_CHOICE" ]; then
                 DISPLAY_SERVER="x11"
                 warn "XFCE ha supporto Wayland parziale, verrà usato X11."
             fi
+            ;;
+        5)
+            DE_NAME="Niri + Noctalia Shell"
+            # Niri è solo Wayland - ignora la scelta display server
+            DE_PKGS="niri xwayland-satellite xdg-desktop-portal-gnome xdg-desktop-portal-gtk alacritty fuzzel swaybg swaylock mako grim slurp wl-clipboard greetd greetd-tuigreet polkit polkit-gnome gnome-keyring libsecret qt6-wayland"
+            DE_SERVICE="greetd"
+            DISPLAY_SERVER="wayland"
+            warn "Niri usa solo Wayland. noctalia-shell verrà installato da AUR dopo il boot."
             ;;
     esac
 
@@ -700,6 +714,120 @@ paru -S --noconfirm needrestart bat btop
 POSTINSTALL
 
 # ============================================================
+# FASE OPZIONALE - CONFIGURAZIONE NIRI + NOCTALIA
+# ============================================================
+if [ "$DE_CHOICE" = "5" ]; then
+    section "Fase opzionale - Configurazione Niri + Noctalia"
+
+    # Configura greetd con tuigreet
+    info "Configurazione greetd..."
+    cat > /mnt/etc/greetd/config.toml << 'EOF'
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --remember --remember-session --sessions /usr/share/wayland-sessions"
+user = "greeter"
+EOF
+
+    # Config niri base
+    info "Configurazione niri base..."
+    arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << NIRIEOF
+mkdir -p ~/.config/niri
+
+cat > ~/.config/niri/config.kdl << 'EOF'
+// Niri config - generato da install-arch.sh
+// Documentazione: https://github.com/niri-wm/niri/wiki
+
+// Avvia noctalia-shell all'avvio
+// NOTA: noctalia-shell verrà installato da AUR al primo login
+// spawn-at-startup "noctalia-qs" "-c" "noctalia-shell"
+
+// Terminale default
+spawn-at-startup "alacritty"
+
+// Keybinding base
+binds {
+    // Apri terminale
+    Mod+T { spawn "alacritty"; }
+    // Apri launcher
+    Mod+D { spawn "fuzzel"; }
+    // Chiudi finestra
+    Mod+Q { close-window; }
+    // Screenshot
+    Mod+S { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+    // Muovi finestre
+    Mod+Left  { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    Mod+Up    { focus-window-up; }
+    Mod+Down  { focus-window-down; }
+    // Sposta finestre
+    Mod+Shift+Left  { move-column-left; }
+    Mod+Shift+Right { move-column-right; }
+    // Fullscreen
+    Mod+F { fullscreen-window; }
+    // Esci da niri
+    Mod+Shift+E { quit; }
+    // Lock screen
+    Mod+L { spawn "swaylock"; }
+}
+
+// Output (adatta al tuo monitor)
+output "eDP-1" {
+    scale 1.0
+}
+
+// Preferenze finestre
+prefer-no-csd
+
+// Animazioni
+animations {
+    // Puoi disabilitarle se vuoi velocità massima
+    // off
+}
+EOF
+
+# Configura polkit per avvio automatico
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/polkit-gnome.service << 'EOF'
+[Unit]
+Description=GNOME polkit agent
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
+EOF
+
+systemctl --user enable polkit-gnome.service 2>/dev/null || true
+
+NIRIEOF
+
+    # Plymouth con arch-charge-big per niri
+    info "Installazione Plymouth per niri..."
+    arch-chroot /mnt pacman -S --noconfirm plymouth
+    arch-chroot /mnt bash -c "sed -i 's/sd-vconsole block/sd-vconsole plymouth block/' /etc/mkinitcpio.conf"
+    arch-chroot /mnt bash -c "sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet splash"/' /etc/default/grub"
+
+    info "Installazione plymouth-theme-arch-charge-big da AUR..."
+    arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash -c "paru -S --noconfirm plymouth-theme-arch-charge-big"
+    arch-chroot /mnt plymouth-set-default-theme -R arch-charge-big
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+
+    info "Niri configurato. Dopo il primo boot:"
+    info "  1) Installa noctalia-shell: paru -S noctalia-shell"
+    info "     (richiede 10-30 min di compilazione)"
+    info "  2) Decommmenta la riga spawn-at-startup in ~/.config/niri/config.kdl"
+    info "  3) Riavvia niri: Mod+Shift+E"
+fi
+
+# ============================================================
 # FINE
 # ============================================================
 section "Installazione completata!"
@@ -709,7 +837,11 @@ echo -e "  ${GREEN}✓${RESET} Oh My Zsh + Powerlevel10k installati"
 echo -e "  ${GREEN}✓${RESET} Greeter configurato"
 echo -e "  ${GREEN}✓${RESET} Snapper configurato (snapshot pre/post pacman)"
 echo -e "  ${GREEN}✓${RESET} ZRAM ${ZRAM_SIZE}MB attivo"
-[ -n "$DE_NAME" ] && echo -e "  ${GREEN}✓${RESET} ${DE_NAME} installato (${DISPLAY_SERVER})"
+if [ -n "$DE_NAME" ]; then
+    echo -e "  DE:            ${CYAN}${DE_NAME} (${DISPLAY_SERVER})${RESET}"
+else
+    echo -e "  DE:            ${CYAN}Nessuno (CLI)${RESET}"
+fi
 echo ""
 warn "Ricorda di:"
 echo -e "  1) Rimuovere l'ISO prima del riavvio"
