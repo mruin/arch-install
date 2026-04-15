@@ -619,16 +619,20 @@ elif [ "$THINKPAD_BATTERY" = true ]; then
     section "Fase opzionale - Battery limit e configurazione ThinkPad"
     info "Configurazione battery limit ThinkPad via thinkpad_acpi..."
 
-    # ThinkPad usa start/stop threshold - 75/80 è la configurazione consigliata
-    cat > /mnt/etc/udev/rules.d/99-battery.rules << 'EOF'
-SUBSYSTEM=="power_supply", KERNEL=="BAT0", ATTR{charge_start_threshold}="75"
-SUBSYSTEM=="power_supply", KERNEL=="BAT0", ATTR{charge_stop_threshold}="80"
-EOF
+    # ThinkPad: i threshold vanno gestiti SOLO tramite TLP (/etc/tlp.d/10-battery.conf)
+    # NON creare 99-battery.rules - causa conflitti con TLP
+    # (si attiva su ogni evento power_supply e sovrascrive le modifiche di TLP)
 
     arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << BATTERYEOF
 echo "alias battery-limit='echo 75 | sudo tee /sys/class/power_supply/BAT0/charge_start_threshold && echo 80 | sudo tee /sys/class/power_supply/BAT0/charge_stop_threshold'" >> ~/.zsh_aliases
 echo "alias battery-full='echo 95 | sudo tee /sys/class/power_supply/BAT0/charge_start_threshold && echo 100 | sudo tee /sys/class/power_supply/BAT0/charge_stop_threshold'" >> ~/.zsh_aliases
 BATTERYEOF
+
+    # Retroilluminazione tastiera ThinkPad - persiste al riavvio
+    cat > /mnt/etc/udev/rules.d/90-kbd-backlight.rules << 'EOF'
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="tpacpi::kbd_backlight", ATTR{brightness}="1"
+EOF
+    info "Retroilluminazione tastiera configurata (livello 1 al boot)."
 
     info "Battery limit ThinkPad configurato (start 75% / stop 80%)."
 
@@ -741,7 +745,7 @@ cat > ~/.config/niri/config.kdl << 'EOF'
 
 // Avvia noctalia-shell all'avvio
 // NOTA: noctalia-shell verrà installato da AUR al primo login
-// spawn-at-startup "noctalia-qs" "-c" "noctalia-shell"
+// spawn-at-startup "qs" "-c" "noctalia-shell"
 
 // Terminale default
 spawn-at-startup "alacritty"
