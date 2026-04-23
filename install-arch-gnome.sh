@@ -324,17 +324,23 @@ $(case "$BOOTLOADER" in
         echo 'EOF'
         ;;
     limine)
-        echo 'limine bios-install '"$DISK"
-        echo 'cp /usr/share/limine/limine-bios.sys /boot/'
         echo 'ROOT_UUID=$(blkid -s UUID -o value /dev/'${DISK_INPUT}'2)'
-        echo 'cat > /boot/limine.cfg << EOF'
-        echo 'TIMEOUT=3'
-        echo ':Arch Linux (zen)'
-        echo '    PROTOCOL=linux'
-        echo '    KERNEL_PATH=boot:///vmlinuz-linux-zen'
-        echo '    MODULE_PATH=boot:///'"${UCODE}"'.img'
-        echo '    MODULE_PATH=boot:///initramfs-linux-zen.img'
-        echo '    CMDLINE=root=UUID=${ROOT_UUID} rw quiet loglevel=3'
+        # Limine UEFI - copia i file EFI nella partizione EFI
+        echo 'mkdir -p /boot/EFI/limine'
+        echo 'cp /usr/share/limine/BOOTX64.EFI /boot/EFI/limine/'
+        echo 'cp /usr/share/limine/limine-uefi-cd.bin /boot/EFI/limine/'
+        # Registra Limine come voce di boot EFI
+        echo 'efibootmgr --create --disk /dev/'${DISK_INPUT}' --part 1 --label "Limine" --loader /EFI/limine/BOOTX64.EFI'
+        echo 'cat > /boot/limine.conf << EOF'
+        echo 'timeout: 3'
+        echo 'default_entry: 1'
+        echo ''
+        echo '/Arch Linux (zen)'
+        echo '    protocol: linux'
+        echo '    kernel_path: boot():/vmlinuz-linux-zen'
+        echo '    module_path: boot():/'${UCODE}'.img'
+        echo '    module_path: boot():/initramfs-linux-zen.img'
+        echo '    cmdline: root=UUID=${ROOT_UUID} rw quiet loglevel=3'
         echo 'EOF'
         ;;
 esac)
@@ -593,7 +599,7 @@ PLYMOUTHEOF
             arch-chroot /mnt bash -c "sed -i 's/options root=/options quiet splash loglevel=3 root=/' /boot/loader/entries/arch-zen.conf"
             ;;
         limine)
-            arch-chroot /mnt bash -c "sed -i 's/CMDLINE=root=/CMDLINE=quiet splash loglevel=3 root=/' /boot/limine.cfg"
+            arch-chroot /mnt bash -c "sed -i 's/cmdline: root=/cmdline: quiet splash loglevel=3 root=/' /boot/limine.conf"
             ;;
     esac
     info "Plymouth configurato con tema arch-charge-big."
