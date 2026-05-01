@@ -404,30 +404,6 @@ makepkg -si --noconfirm
 cd && rm -rf /tmp/paru-bin
 PARUINSTALL
 
-# ============================================================
-# LIMINE-SNAPPER-SYNC (solo con Limine)
-# ============================================================
-if [ "$BOOTLOADER" = "limine" ]; then
-    section "Limine-Snapper-Sync"
-
-    arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << 'LIMINESYNC'
-set -e
-paru -S --noconfirm limine-snapper-sync
-LIMINESYNC
-
-    cat > /mnt/etc/limine-snapper-sync.conf << 'LIMINESYNCCONF'
-LIMIT_USAGE_PERCENT=85
-MAX_SNAPSHOT_ENTRIES=8
-ROOT_SUBVOLUME_PATH="/@"
-ROOT_SNAPSHOTS_PATH="/@snapshots"
-RESTORE_METHOD=replace
-SET_SNAPSHOT_AS_DEFAULT=no
-SNAPSHOT_FORMAT_CHOICE=2
-LIMINESYNCCONF
-
-    arch-chroot /mnt systemctl enable limine-snapper-sync.service
-    info "Limine-Snapper-Sync installato e abilitato."
-fi
 
 # ============================================================
 # TASTIERA GNOME
@@ -478,7 +454,7 @@ echo -e "  ${GREEN}✓${RESET} paru installato"
 echo -e "  ${GREEN}✓${RESET} Snapper"
 echo -e "  ${GREEN}✓${RESET} ZRAM ${ZRAM_SIZE}MB"
 $INSTALL_PLYMOUTH && echo -e "  ${GREEN}✓${RESET} Plymouth arch-charge-big"
-[ "$BOOTLOADER" = "limine" ] && echo -e "  ${GREEN}✓${RESET} Limine-Snapper-Sync (snapshot al boot)"
+[ "$BOOTLOADER" = "limine" ] && warn "Dopo il primo boot installa manualmente: paru -S limine-snapper-sync"
 echo ""
 warn "Prima del riavvio: rimuovi la ISO dal lettore!"
 warn "Dopo il primo login: esegui lo script dot-files per configurare zsh, Oh My Zsh, p10k e alias."
