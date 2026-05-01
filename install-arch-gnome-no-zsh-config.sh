@@ -390,19 +390,6 @@ LIMINEDEFAULT
         ;;
 esac
 
-# ============================================================
-# PARU
-# ============================================================
-section "Installazione paru"
-
-arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << 'PARUINSTALL'
-set -e
-cd /tmp
-git clone https://aur.archlinux.org/paru.git
-cd paru
-makepkg -si --noconfirm
-cd && rm -rf /tmp/paru
-PARUINSTALL
 
 
 # ============================================================
@@ -461,14 +448,14 @@ echo -e "  ${GREEN}✓${RESET} GNOME + GDM"
 echo -e "  ${GREEN}✓${RESET} Bootloader: ${CYAN}${BOOTLOADER}${RESET}"
 echo -e "  ${GREEN}✓${RESET} Utente ${CYAN}${USERNAME}${RESET} configurato"
 echo -e "  ${GREEN}✓${RESET} zsh installato (configurazione da applicare con dot-files)"
-echo -e "  ${GREEN}✓${RESET} paru installato"
 echo -e "  ${GREEN}✓${RESET} Snapper"
 echo -e "  ${GREEN}✓${RESET} ZRAM ${ZRAM_SIZE}MB"
 $INSTALL_PLYMOUTH && echo -e "  ${GREEN}✓${RESET} Plymouth arch-charge-big"
 [ "$BOOTLOADER" = "limine" ] && warn "Dopo il primo boot installa manualmente: paru -S limine-snapper-sync"
 echo ""
 warn "Prima del riavvio: rimuovi la ISO dal lettore!"
-warn "Dopo il primo login: esegui lo script dot-files per configurare zsh, Oh My Zsh, p10k e alias."
+warn "Dopo il primo login: installa paru con: cd /tmp && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm"
+warn "Poi esegui lo script dot-files per configurare zsh, Oh My Zsh, p10k e alias."
 echo ""
 read -p "Riavviare ora? [s/N]: " REBOOT_NOW
 [[ "$REBOOT_NOW" =~ ^[sS]$ ]] && umount -R /mnt && reboot || echo -e "\nEsegui: ${CYAN}umount -R /mnt && reboot${RESET}"
