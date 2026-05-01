@@ -192,13 +192,15 @@ paru -S limine-snapper-sync
 
 ## Post installazione
 
-### Ricompila paru al primo boot
+### Installa paru al primo boot
 
-`paru-bin` viene installato dallo script ma può fallire con errore `libalpm.so` per incompatibilità di versione. Ricompila da sorgente:
+Lo script non installa paru per evitare problemi di compilazione nell'ambiente live. Al primo boot:
 
 ```bash
-cd /tmp && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm
+rm -rf /tmp/paru && cd /tmp && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm
 ```
+
+> Se hai `paru-bin` già installato (da una versione precedente dello script), rimuovilo prima: `sudo pacman -R paru-bin`
 
 ### Configura il prompt al primo login
 
