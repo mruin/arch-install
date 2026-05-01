@@ -8,6 +8,7 @@ Script di installazione automatica per Arch Linux, sviluppati e testati su hardw
 |--------|-------------|
 | `install-arch.sh` | Installazione completa con scelta DE (GNOME, KDE, Cinnamon, XFCE, Niri+Noctalia) |
 | `install-arch-gnome.sh` | Installazione dedicata GNOME con scelta bootloader (GRUB, systemd-boot, Limine) |
+| `install-arch-gnome-no-zsh-config.sh` | Come sopra, senza configurazione zsh — da completare con dot-files |
 
 ---
 
@@ -80,6 +81,18 @@ chmod +x install-arch-gnome.sh
 ./install-arch-gnome.sh
 ```
 
+#### Installazione GNOME senza configurazione zsh
+
+Installa il sistema completo lasciando zsh privo di configurazione, da applicare in seguito con il repo dot-files.
+
+Se vuoi lo **sfondo Limine** (`archcustom.png`), clona il repo invece di scaricare il solo script:
+
+```bash
+git clone https://github.com/mruin/arch-install
+cd arch-install
+bash install-arch-gnome-no-zsh-config.sh
+```
+
 ---
 
 ## Cosa configurano gli script
@@ -127,7 +140,7 @@ chmod +x install-arch-gnome.sh
 | VirtualBox Guest Additions | Sì / No |
 | ZRAM | Dimensione in MB (default: 3072) |
 
-### `install-arch-gnome.sh`
+### `install-arch-gnome.sh` e `install-arch-gnome-no-zsh-config.sh`
 
 | Opzione | Scelte disponibili |
 |---------|-------------------|
@@ -139,6 +152,20 @@ chmod +x install-arch-gnome.sh
 | VirtualBox Guest Additions | Sì / No |
 | ZRAM | Dimensione in MB (default: 4096) |
 | Plymouth | Sì / No (tema arch-charge-big) |
+
+#### Limine — funzionalità extra (solo `no-zsh-config`)
+
+- Palette terminale **Catppuccin Mocha**
+- Sfondo personalizzato (`archcustom.png`) se presente nella stessa cartella dello script
+- `interface_branding:` vuoto (rimuove il branding Limine)
+- Group entry (`/+Arch Linux (zen)` → `//Kernel zen`)
+- `/etc/default/limine` preconfigurato per `limine-snapper-sync`
+
+Dopo il primo boot, installa manualmente la sincronizzazione snapshot:
+
+```bash
+paru -S limine-snapper-sync
+```
 
 ---
 
