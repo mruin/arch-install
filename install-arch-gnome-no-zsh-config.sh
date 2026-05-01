@@ -398,10 +398,10 @@ section "Installazione paru"
 arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << 'PARUINSTALL'
 set -e
 cd /tmp
-git clone https://aur.archlinux.org/paru.git
-cd paru
+git clone https://aur.archlinux.org/paru-bin.git
+cd paru-bin
 makepkg -si --noconfirm
-cd && rm -rf /tmp/paru
+cd && rm -rf /tmp/paru-bin
 PARUINSTALL
 
 # ============================================================
