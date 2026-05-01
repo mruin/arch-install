@@ -190,17 +190,36 @@ paru -S limine-snapper-sync
 
 ---
 
-## Post installazione
+## Post installazione (install-arch-gnome-no-zsh-config.sh)
 
-### Installa paru al primo boot
+Dopo il primo boot, esegui questi passi nell'ordine.
 
-Lo script non installa paru per evitare problemi di compilazione nell'ambiente live. Al primo boot:
+### 1. Installa paru
+
+Lo script non installa paru perché la compilazione Rust nell'ambiente live è inaffidabile. Dal sistema avviato:
 
 ```bash
-rm -rf /tmp/paru && cd /tmp && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm
+# Se sono presenti residui di paru-bin da versioni precedenti dello script, rimuovili prima:
+sudo pacman -R paru-bin paru-bin-debug 2>/dev/null
+
+# Rimuovi eventuale directory rimasta da tentativi precedenti:
+rm -rf /tmp/paru
+
+# Clona, compila e installa:
+cd /tmp && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm
 ```
 
-> Se hai `paru-bin` già installato (da una versione precedente dello script), rimuovilo prima: `sudo pacman -R paru-bin`
+### 2. Installa limine-snapper-sync (solo se hai scelto Limine)
+
+```bash
+paru -S limine-snapper-sync
+```
+
+### 3. Applica la configurazione zsh con dot-files
+
+```bash
+# Segui le istruzioni del repo dot-files
+```
 
 ### Configura il prompt al primo login
 
