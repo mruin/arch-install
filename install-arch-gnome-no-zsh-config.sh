@@ -398,18 +398,24 @@ section "Installazione paru"
 arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << 'PARUINSTALL'
 set -e
 cd /tmp
-git clone https://aur.archlinux.org/paru-bin.git
-cd paru-bin
+git clone https://aur.archlinux.org/paru.git
+cd paru
 makepkg -si --noconfirm
-cd && rm -rf /tmp/paru-bin
+cd && rm -rf /tmp/paru
 PARUINSTALL
 
 
 # ============================================================
 # TASTIERA GNOME
 # ============================================================
-arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << 'GNOMECONF'
-gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'it')]" 2>/dev/null || true
+# Override dconf system-wide: gsettings in chroot senza dbus non persiste
+arch-chroot /mnt bash << 'GNOMECONF'
+mkdir -p /etc/dconf/db/local.d
+cat > /etc/dconf/db/local.d/00-input-sources << 'EOF'
+[org/gnome/desktop/input-sources]
+sources=[('xkb', 'it')]
+EOF
+dconf update
 GNOMECONF
 
 # ============================================================
