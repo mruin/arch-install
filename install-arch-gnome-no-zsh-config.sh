@@ -420,7 +420,12 @@ if [ "$INSTALL_PLYMOUTH" = true ]; then
     arch-chroot /mnt pacman -S --noconfirm plymouth
 
     arch-chroot /mnt /bin/su - ${USERNAME} -s /bin/bash << 'PLYMOUTHEOF'
-paru -S --noconfirm plymouth-theme-arch-charge-big
+set -e
+cd /tmp
+git clone https://aur.archlinux.org/plymouth-theme-arch-charge-big.git
+cd plymouth-theme-arch-charge-big
+makepkg -si --noconfirm
+cd && rm -rf /tmp/plymouth-theme-arch-charge-big
 PLYMOUTHEOF
 
     arch-chroot /mnt bash -c "sed -i 's/sd-vconsole block/sd-vconsole plymouth block/' /etc/mkinitcpio.conf"
